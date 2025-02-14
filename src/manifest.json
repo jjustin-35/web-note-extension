@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Web Note",
+  "version": "1.0.0",
+  "description": "Add draggable sticky notes to any web page",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "sidePanel",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://localhost:5173/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "action": {
+    "default_title": "Web Note"
+  },
+  "background": {
+    "service_worker": "serviceWorker.js"
+  }
+}
