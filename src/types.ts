@@ -5,6 +5,11 @@ export interface Position {
   y: number;
 }
 
+export interface GetNoteProps {
+  search?: string;
+  website?: string;
+}
+
 export interface NoteData {
   id: string;
   title: string;

@@ -1,17 +1,16 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import { noteStorage } from "../services/noteStorage";
-  import type { Note } from "../services/noteStorage";
-  import Icon from "./Icon.svelte";
+  import type { Color, NoteData } from "../types";
   import { IconType } from "../types";
+  import Icon from "./Icon.svelte";
 
-  export let note: Note;
+  export let note: NoteData;
   export let focused: boolean = false;
 
   const dispatch = createEventDispatcher<{
-    update: Note;
+    update: NoteData;
     delete: { id: string };
-    focus: string;
+    focus: NoteData['id'];
   }>();
 
   let isEdit = false;
@@ -19,205 +18,245 @@
   let originalPosition: { x: number; y: number } | null = null;
   let contentEl: HTMLDivElement;
 
-  const colors = ["yellow", "pink", "blue"];
-  let selectedColor = "yellow";
+  const colors: Color[] = ["yellow", "pink", "blue"];
 
-  async function handleContentChange() {
-    if (!isEdit) return;
-    
-    try {
-      const updatedNote = await noteStorage.updateNote(note.id, {
-        content: contentEl.innerText
-      });
-      dispatch('update', updatedNote);
-    } catch (error) {
-      console.error('Failed to update note:', error);
-    }
-  }
-
-  async function handleDelete() {
-    try {
-      await noteStorage.deleteNote(note.id);
-      dispatch('delete', { id: note.id });
-    } catch (error) {
-      console.error('Failed to delete note:', error);
-    }
-  }
-
-  function startDrag(event: MouseEvent) {
+  function handleDragStart(e: MouseEvent) {
     if (isEdit) return;
-    
-    dragOffset = {
-      x: event.clientX - note.position.x,
-      y: event.clientY - note.position.y
-    };
+    const target = e.target as HTMLElement;
+
     originalPosition = { ...note.position };
-    
-    window.addEventListener('mousemove', handleDrag);
-    window.addEventListener('mouseup', stopDrag);
+
+    dragOffset = {
+      x: e.clientX - note.position.x,
+      y: e.clientY - note.position.y,
+    };
+
+    target.style.cursor = "grabbing";
+    dispatch("focus", note.id);
   }
 
-  async function handleDrag(event: MouseEvent) {
+  function handleDragMove(e: MouseEvent) {
+    if (isEdit) return;
     if (!dragOffset) return;
 
-    const newPosition = {
-      x: event.clientX - dragOffset.x,
-      y: event.clientY - dragOffset.y
+    note.position = {
+      x: e.clientX - dragOffset.x,
+      y: e.clientY - dragOffset.y,
     };
-
-    try {
-      const updatedNote = await noteStorage.updateNote(note.id, {
-        position: newPosition
-      });
-      dispatch('update', updatedNote);
-    } catch (error) {
-      console.error('Failed to update note position:', error);
-    }
   }
 
-  function stopDrag() {
+  function handleDragEnd(e: MouseEvent) {
+    if (isEdit) return;
+    if (!dragOffset) return;
+
     dragOffset = null;
-    originalPosition = null;
-    window.removeEventListener('mousemove', handleDrag);
-    window.removeEventListener('mouseup', stopDrag);
+    const target = e.target as HTMLElement;
+    target.style.cursor = "move";
+
+    if (JSON.stringify(originalPosition) !== JSON.stringify(note.position)) {
+      dispatch("update", note);
+    }
   }
 
-  function handleFocus() {
-    if (!focused) {
-      dispatch('focus', note.id);
+  function handleContentChange() {
+    if (!isEdit) return;
+    note.content = contentEl.textContent as string;
+    note.title = note.content.split("\n")[0].trim() || "Untitled Note";
+  }
+
+  function toggleEdit() {
+    if (isEdit) {
+      dispatch("update", note);
     }
+    isEdit = !isEdit;
+  }
+
+  function handleBlur(e: FocusEvent) {
+    const target = e.currentTarget as HTMLElement;
+    const relatedElement = e.relatedTarget as HTMLElement;
+    if (target.contains(relatedElement)) return;
+
+    console.log(target);
+    console.log(relatedElement);
+
+    toggleEdit();
+  }
+
+  function handleColorChange(color: Color) {
+    note.color = color;
+    dispatch("update", note);
+  }
+
+  function handleDelete() {
+    dispatch("delete", { id: note.id });
   }
 </script>
 
-<button
-  type="button"
-  class="note {selectedColor}"
+<div
+  class="note {note.color} drag-handle {isEdit ? 'drag-disable' : ''} {focused ? 'focused' : ''}"
   style="left: {note.position.x}px; top: {note.position.y}px;"
-  on:mousedown={startDrag}
-  on:click={handleFocus}
-  class:focused={focused}
-  aria-label="Note"
   role="button"
   tabindex="0"
+  on:mousedown={handleDragStart}
+  on:mousemove={handleDragMove}
+  on:mouseup={handleDragEnd}
+  on:blur={handleBlur}
+  data-note-id={note.id}
+  aria-label="Draggable note"
 >
-  <div class="toolbar">
-    <div class="color-picker">
-      {#each colors as color}
-        <button
-          class="color-btn {color}"
-          class:selected={selectedColor === color}
-          on:click={() => selectedColor = color}
-        />
-      {/each}
-    </div>
-    <div class="actions">
-      <button class="edit-btn" on:click={() => isEdit = !isEdit}>
-        <Icon type={isEdit ? IconType.CHECK : IconType.EDIT} />
-      </button>
-      <button class="delete-btn" on:click={handleDelete}>
-        <Icon type={IconType.DELETE} />
-      </button>
-    </div>
+  <div class="controls">
+    <button class="button edit" aria-label="{isEdit ? 'finish' : ''} edit note" on:click={toggleEdit}>
+      <Icon type={isEdit ? IconType.CHECK : IconType.EDIT} />
+    </button>
+    <button
+      class="button delete"
+      on:click={handleDelete}
+      aria-label="Delete note"
+    >
+      <Icon type={IconType.DELETE} />
+    </button>
   </div>
 
+  {#if isEdit}
   <div
     class="content"
-    class:editing={isEdit}
-    contenteditable={isEdit}
+    contenteditable="true"
     bind:this={contentEl}
+    role="textbox"
     on:input={handleContentChange}
-  >
-    {note.content}
-  </div>
+    on:blur={handleBlur}
+    aria-multiline="true"
+  ></div>
+  {:else}
+  <p class="content">{note.content}</p>
+  {/if}
 
-  <div class="timestamp">
-    Updated: {new Date(note.updatedAt).toLocaleString()}
+  {#if isEdit}
+  <div class="color-picker" role="toolbar" aria-label="Note color options">
+    {#each colors as color}
+      <button
+        class="color-option {color} {color === note.color ? 'selected' : ''}"
+        on:click={() => handleColorChange(color)}
+        on:keydown={(e) => e.key === "Enter" && handleColorChange(color)}
+        aria-label="Set note color to {color}"
+        aria-pressed={color === note.color}
+      />
+    {/each}
   </div>
-</button>
+  {/if}
+</div>
 
 <style>
   .note {
     position: absolute;
     width: 200px;
     min-height: 120px;
-    background: #fff;
+    padding: 8px 16px 16px;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 9999;
+    transition: box-shadow 0.2s ease;
     display: flex;
     flex-direction: column;
-    padding: 12px;
-    cursor: move;
-    z-index: 1000;
   }
 
   .note.focused {
-    z-index: 1001;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10000;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   }
 
-  .note.yellow { background: #fff9c4; }
-  .note.pink { background: #f8bbd0; }
-  .note.blue { background: #bbdefb; }
-
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
+  .drag-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+    cursor: move;
   }
 
-  .color-picker {
-    display: flex;
-    gap: 4px;
+  .drag-disable {
+    cursor: unset;
   }
 
-  .color-btn {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    cursor: pointer;
+  .note.yellow {
+    background-color: #fff9c4;
+  }
+  .note.pink {
+    background-color: #f8bbd0;
+  }
+  .note.blue {
+    background-color: #bbdefb;
   }
 
-  .color-btn.yellow { background: #fff9c4; }
-  .color-btn.pink { background: #f8bbd0; }
-  .color-btn.blue { background: #bbdefb; }
-  .color-btn.selected { border: 2px solid rgba(0, 0, 0, 0.3); }
-
-  .actions {
+  .controls {
     display: flex;
     gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
   }
 
-  .actions button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 2px;
-    opacity: 0.6;
-  }
-
-  .actions button:hover {
+  .note:hover .controls {
     opacity: 1;
   }
 
-  .content {
-    flex-grow: 1;
-    min-height: 60px;
-    margin-bottom: 8px;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .content.editing {
-    cursor: text;
-    outline: none;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
+  .button {
     padding: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    border-radius: 4px;
   }
 
-  .timestamp {
-    font-size: 0.8em;
-    color: rgba(0, 0, 0, 0.5);
+  .button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .content {
+    margin-top: 8px;
+    outline: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    word-break: break-word;
+    white-space: pre-wrap;
+    height: 100%;
+  }
+
+  .color-picker {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .note:hover .color-picker {
+    opacity: 1;
+  }
+
+  .color-option {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    padding: 0;
+    background: none;
+  }
+
+  .color-option.selected {
+    border-color: rgba(0, 0, 0, 0.3);
+  }
+
+  .color-option.yellow {
+    background-color: #fff9c4;
+  }
+  .color-option.pink {
+    background-color: #f8bbd0;
+  }
+  .color-option.blue {
+    background-color: #bbdefb;
   }
 </style>

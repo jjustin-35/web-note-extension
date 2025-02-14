@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import Note from './Note.svelte';
-  import { MessageType, type NoteData } from '../types';
-  import { getNotes, postNote, putNote, deleteNote } from '../apis/notes';
+  import { onMount } from "svelte";
+  import Note from "./Note.svelte";
+  import { MessageType, type NoteData } from "../types";
+  import { noteStorage } from "../services/noteStorage";
 
   let notes: NoteData[] = [];
   let focusedNoteId: string | null = null;
@@ -10,16 +10,15 @@
 
   // 標準化 URL 函數
   function normalizeUrl(url: string): string {
-    return url.replace(/^https?:\/\/(www\.)?/, '').split('#')[0];
+    return url.replace(/^https?:\/\/(www\.)?/, "").split("#")[0];
   }
 
   async function loadNotes() {
     try {
-      notes = await getNotes({
-        website: normalizeUrl(currentWebsite)
-      });
+      const website = normalizeUrl(currentWebsite);
+      notes = await noteStorage.getNotes({ website });
     } catch (error) {
-      console.error('Failed to load notes:', error);
+      console.error("Failed to load notes:", error);
     }
   }
 
@@ -33,23 +32,35 @@
     };
 
     // 監聽 history 變化
-    window.addEventListener('popstate', handleUrlChange);
-    
+    window.addEventListener("popstate", handleUrlChange);
+
     // 監聽使用 pushState 或 replaceState 的變化
     const originalPushState = history.pushState;
     const originalReplaceState = history.replaceState;
 
-    history.pushState = function(data: any, unused: string, url?: string | URL) {
+    history.pushState = function (
+      data: any,
+      unused: string,
+      url?: string | URL
+    ) {
       originalPushState.call(this, data, unused, url);
       handleUrlChange();
     };
 
-    history.replaceState = function(data: any, unused: string, url?: string | URL) {
+    history.replaceState = function (
+      data: any,
+      unused: string,
+      url?: string | URL
+    ) {
       originalReplaceState.call(this, data, unused, url);
       handleUrlChange();
     };
 
-    const messageListener = (message: any, _: any, sendResponse: (response: any) => void) => {
+    const messageListener = (
+      message: any,
+      _: any,
+      sendResponse: (response: any) => void
+    ) => {
       if (message.type === MessageType.CREATE_NOTE) {
         createNewNote();
       } else if (message.type === MessageType.FOCUS_NOTE) {
@@ -66,49 +77,51 @@
 
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener);
-      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener("popstate", handleUrlChange);
       history.pushState = originalPushState;
       history.replaceState = originalReplaceState;
     };
   });
 
   async function createNewNote() {
-    const note: Partial<NoteData> = {
-      title: 'New Note',
-      content: '',
+    const note: NoteData = {
+      id: null,
+      title: "New Note",
+      content: "",
       website: normalizeUrl(currentWebsite),
-      color: 'yellow',
-      position: { x: 100, y: 100 }
+      color: "yellow",
+      position: { x: 100, y: 100 },
+      tags: [],
     };
 
     try {
-      const newNote = await postNote(note);
+      const newNote = await noteStorage.saveNote(note);
       notes = [...notes, newNote];
       focusedNoteId = newNote.id;
     } catch (error) {
-      console.error('Failed to create note:', error);
+      console.error("Failed to create note:", error);
     }
   }
 
   async function handleUpdateNote(note: NoteData) {
     try {
-      const updatedNote = await putNote(note);
-      notes = notes.map((n) => n.id === updatedNote.id ? updatedNote : n);
+      const updatedNote = await noteStorage.saveNote(note);
+      notes = notes.map((n) => (n.id === updatedNote.id ? updatedNote : n));
     } catch (error) {
-      console.error('Failed to update note:', error);
+      console.error("Failed to update note:", error);
     }
   }
 
   async function handleDeleteNote(id: string) {
     try {
-      await deleteNote(id);
+      await noteStorage.deleteNote(id);
       notes = notes.filter((n) => n.id !== id);
 
       if (focusedNoteId === id) {
         focusedNoteId = null;
       }
     } catch (error) {
-      console.error('Failed to delete note:', error);
+      console.error("Failed to delete note:", error);
     }
   }
 
@@ -120,15 +133,12 @@
   }
 
   function handleNoteFocus(event: CustomEvent<string>) {
-    const id = event.detail;
-    if (!id) return;
-
-    focusedNoteId = id;
+    focusedNoteId = event.detail;
   }
 </script>
 
 {#each notes as note (note.id)}
-  <Note 
+  <Note
     {note}
     focused={note.id === focusedNoteId}
     on:update={async (event) => handleUpdateNote(event.detail)}

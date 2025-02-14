@@ -4,22 +4,23 @@ export interface UserInfo {
   picture: string;
 }
 
-class AuthService {
+export class AuthService {
   // private static readonly AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
   // private static readonly TOKEN_URL = 'https://oauth2.googleapis.com/token';
-  private static readonly USERINFO_URL = 'https://www.googleapis.com/oauth2/v1/userinfo';
-  
+  private static readonly USERINFO_URL =
+    "https://www.googleapis.com/oauth2/v1/userinfo";
+
   async login(): Promise<UserInfo> {
     try {
       const token = await this.getAuthToken();
       return await this.getUserInfo(token);
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error("Login failed:", error);
       throw error;
     }
   }
 
-  private async getAuthToken(): Promise<string> {
+  async getAuthToken(): Promise<string> {
     return new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: true }, (token) => {
         if (chrome.runtime.lastError) {
@@ -39,7 +40,7 @@ class AuthService {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get user info');
+      throw new Error("Failed to get user info");
     }
 
     return response.json();
