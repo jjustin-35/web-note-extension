@@ -14,14 +14,18 @@
   }>();
 
   let isEdit = false;
+  let value: string = note.content;
   let dragOffset: { x: number; y: number } | null = null;
   let originalPosition: { x: number; y: number } | null = null;
-  let contentEl: HTMLDivElement;
+  let isResizing = false;
+  let originalSize: { width: number; height: number } | null = null;
+  let resizeStart: { x: number; y: number } | null = null;
 
   const colors: Color[] = ["yellow", "pink", "blue"];
 
   function handleDragStart(e: MouseEvent) {
     if (isEdit) return;
+    if (isResizing) return;
     const target = e.target as HTMLElement;
 
     originalPosition = { ...note.position };
@@ -37,6 +41,7 @@
 
   function handleDragMove(e: MouseEvent) {
     if (isEdit) return;
+    if (isResizing) return;
     if (!dragOffset) return;
 
     note.position = {
@@ -47,6 +52,7 @@
 
   function handleDragEnd(e: MouseEvent) {
     if (isEdit) return;
+    if (isResizing) return;
     if (!dragOffset) return;
 
     dragOffset = null;
@@ -58,23 +64,20 @@
     }
   }
 
-  function handleContentChange() {
-    if (!isEdit) return;
-    note.content = contentEl.textContent as string;
-    note.title = note.content.split("\n")[0].trim() || "Untitled Note";
-  }
-
   function toggleEdit() {
-    isEdit = !isEdit;
+    setTimeout(() => {
+      isEdit = !isEdit;
+    }, 100);
   }
 
   function handleBlur(e: FocusEvent) {
     const target = e.currentTarget as HTMLElement;
     const relatedElement = e.relatedTarget as HTMLElement;
+    if (!isEdit) return;
     if (target.contains(relatedElement)) return;
 
-    console.log(target);
-    console.log(relatedElement);
+    note.content = value;
+    note.title = value.split("\n")[0].trim() || "Untitled Note";
 
     isEdit = false;
     dispatch("update", note);
@@ -88,12 +91,61 @@
   function handleDelete() {
     dispatch("delete", { id: note.id });
   }
+
+  function handleResizeStart(e: MouseEvent) {
+    e.stopPropagation();
+    console.log('handleResizeStart')
+    isResizing = true;
+    const currentTarget = e.currentTarget as HTMLElement;
+    const noteElement = currentTarget.parentElement;
+    originalSize = {
+      width: noteElement.offsetWidth,
+      height: noteElement.offsetHeight,
+    };
+    resizeStart = {
+      x: e.clientX,
+      y: e.clientY,
+    };
+
+    window.addEventListener('mousemove', handleResizeMove);
+    window.addEventListener('mouseup', handleResizeEnd);
+  }
+
+  function handleResizeMove(e: MouseEvent) {
+    if (!isResizing || !originalSize || !resizeStart) return;
+    console.log('handleResizeMove')
+
+    const deltaX = e.clientX - resizeStart.x;
+    const deltaY = e.clientY - resizeStart.y;
+
+    const newWidth = Math.max(200, originalSize.width + deltaX);
+    const newHeight = Math.max(120, originalSize.height + deltaY);
+
+    const noteElement = document.querySelector(`#note-${note.id}`) as HTMLElement;
+    if (noteElement) {
+      console.log('noteElement', noteElement)
+      noteElement.style.width = `${newWidth}px`;
+      noteElement.style.height = `${newHeight}px`;
+      note.size = { width: newWidth, height: newHeight };
+    }
+  }
+
+  function handleResizeEnd() {
+    if (!isResizing) return;
+    console.log('handleResizeEnd');
+    
+    dispatch("update", note);
+    isResizing = false;
+    originalSize = null;
+    resizeStart = null;
+
+    window.removeEventListener('mousemove', handleResizeMove);
+    window.removeEventListener('mouseup', handleResizeEnd);
+  }
 </script>
 
 <div
-  class="note {note.color} drag-handle {isEdit ? 'drag-disable' : ''} {focused
-    ? 'focused'
-    : ''}"
+  class="note {note.color} drag-handle {isEdit ? 'drag-disable' : ''}"
   style="left: {note.position.x}px; top: {note.position.y}px;"
   role="button"
   tabindex="0"
@@ -101,6 +153,7 @@
   on:mousemove={handleDragMove}
   on:mouseup={handleDragEnd}
   on:blur={handleBlur}
+  id="note-{note.id}"
   data-note-id={note.id}
   aria-label="Draggable note"
 >
@@ -122,17 +175,14 @@
   </div>
 
   {#if isEdit}
-    <div
+    <textarea
       class="content"
-      contenteditable="true"
-      bind:this={contentEl}
-      role="textbox"
-      on:input={handleContentChange}
       on:blur={handleBlur}
       aria-multiline="true"
-    ></div>
+      bind:value
+    />
   {:else}
-    <p class="content">{note.content}</p>
+    <p class="content">{value}</p>
   {/if}
 
   {#if isEdit}
@@ -148,6 +198,13 @@
       {/each}
     </div>
   {/if}
+  <div
+    class="resize-handle"
+    role="button"
+    tabindex="0"
+    aria-label="Resize note"
+    on:mousedown={handleResizeStart}
+  />
 </div>
 
 <style>
@@ -157,16 +214,24 @@
     min-height: 120px;
     padding: 8px 16px 16px;
     border-radius: 8px;
+    background-color: var(--note-bg);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     z-index: 9999;
     transition: box-shadow 0.2s ease;
     display: flex;
     flex-direction: column;
+    cursor: move;
+    overflow: auto;
+    outline: 2px dashed #666;
+    outline-offset: 4px;
+    transition: outline-color 0.2s ease, width 0.1s ease, height 0.1s ease;
   }
 
   .note.focused {
     z-index: 10000;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    outline: 2px dashed #666;
+    resize: both;
   }
 
   .drag-handle {
@@ -217,13 +282,21 @@
   }
 
   .content {
-    margin-top: 8px;
+    margin: 8px 14px;
     outline: none;
     overflow-x: hidden;
     overflow-y: auto;
     word-break: break-word;
     white-space: pre-wrap;
     height: 100%;
+    border: none;
+    font-size: 14px;
+  }
+
+  textarea.content {
+    background-color: inherit;
+    padding: 0;
+    resize: none;
   }
 
   .color-picker {
@@ -262,5 +335,25 @@
   }
   .color-option.blue {
     background-color: #bbdefb;
+  }
+
+  .resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    cursor: se-resize;
+    background: linear-gradient(
+      135deg,
+      transparent 50%,
+      rgba(0, 0, 0, 0.2) 50%
+    );
+    border-radius: 0 0 8px 0;
+    display: none;
+  }
+
+  .note:hover .resize-handle {
+    display: block;
   }
 </style>

@@ -5,6 +5,11 @@ export interface Position {
   y: number;
 }
 
+export interface Size {
+  width: number;
+  height: number;
+}
+
 export interface GetNoteProps {
   search?: string;
   website?: string;
@@ -18,6 +23,7 @@ export interface NoteData {
   tags: string[];
   color: Color;
   position: Position;
+  size: Size;
   createdAt?: string;
   updatedAt?: string;
 }

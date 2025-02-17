@@ -91,6 +91,7 @@
       website: normalizeUrl(currentWebsite),
       color: "yellow",
       position: { x: 100, y: 100 },
+      size: { width: 200, height: 120 },
       tags: [],
     };
 
