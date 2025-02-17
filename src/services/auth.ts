@@ -1,3 +1,5 @@
+import { MAIN_WEB } from "../config";
+
 export interface UserInfo {
   email: string;
   name: string;
@@ -5,70 +7,98 @@ export interface UserInfo {
 }
 
 export class AuthService {
-  // private static readonly AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
-  // private static readonly TOKEN_URL = 'https://oauth2.googleapis.com/token';
-  private static readonly USERINFO_URL =
-    "https://www.googleapis.com/oauth2/v1/userinfo";
+  private static readonly SESSION_URL = `${MAIN_WEB}/api/auth/session`;
+
+  private openLoginWindow(url: string): Promise<chrome.windows.Window> {
+    return new Promise((resolve) => {
+      chrome.windows.create({
+        url,
+        type: 'popup',
+        width: 600,
+        height: 700
+      }, (window) => resolve(window));
+    });
+  }
+
+  private waitForLogin(loginWindow: chrome.windows.Window): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const checkInterval = setInterval(async () => {
+        try {
+          const session = await this.getSession();
+          if (session?.user) {
+            clearInterval(checkInterval);
+            if (loginWindow.id) {
+              chrome.windows.remove(loginWindow.id);
+            }
+            resolve();
+          }
+        } catch (error) {
+          console.error('Error checking session:', error);
+        }
+      }, 1000);
+
+      // 設定超時
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        if (loginWindow.id) {
+          chrome.windows.remove(loginWindow.id);
+        }
+        reject(new Error('Login timeout'));
+      }, 300000); // 5 分鐘超時
+    });
+  }
+
+  private async getSession(): Promise<any> {
+    const response = await fetch(AuthService.SESSION_URL, {
+      credentials: 'include'
+    });
+    if (!response.ok) return null;
+    return response.json();
+  }
+
+  private async getUserInfo(): Promise<UserInfo> {
+    const session = await this.getSession();
+    if (!session?.user) {
+      throw new Error('No user session found');
+    }
+    return {
+      email: session.user.email,
+      name: session.user.name,
+      picture: session.user.image
+    };
+  }
 
   async login(): Promise<UserInfo> {
     try {
-      const token = await this.getAuthToken();
-      return await this.getUserInfo(token);
+      // 開啟登入頁面
+      const loginUrl = `${MAIN_WEB}/auth/signin`;
+      const loginWindow = await this.openLoginWindow(loginUrl);
+      
+      // 等待登入完成
+      await this.waitForLogin(loginWindow);
+      
+      // 獲取使用者資訊
+      return await this.getUserInfo();
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
     }
   }
 
-  async getAuthToken(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken({ interactive: true }, (token) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-          return;
-        }
-        resolve(token);
-      });
-    });
-  }
-
-  private async getUserInfo(token: string): Promise<UserInfo> {
-    const response = await fetch(AuthService.USERINFO_URL, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to get user info");
-    }
-
-    return response.json();
-  }
-
   async logout(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken({ interactive: false }, (token) => {
-        if (!token) {
-          resolve();
-          return;
-        }
-
-        // Revoke token
-        chrome.identity.removeCachedAuthToken({ token }, () => {
-          const revokeUrl = `https://accounts.google.com/o/oauth2/revoke?token=${token}`;
-          fetch(revokeUrl)
-            .then(() => resolve())
-            .catch(reject);
-        });
-      });
+    const response = await fetch(`${MAIN_WEB}/auth/signout`, {
+      method: 'POST',
+      credentials: 'include'
     });
+    if (!response.ok) {
+      throw new Error('Logout failed');
+    }
   }
 
   async isAuthenticated(): Promise<boolean> {
     try {
-      await this.getAuthToken();
-      return true;
+      const session = await this.getSession();
+      return !!session?.user;
     } catch {
       return false;
     }

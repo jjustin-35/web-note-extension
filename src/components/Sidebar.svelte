@@ -1,35 +1,42 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import type { NoteData } from '../types';
-  import { getNotes } from '../apis/notes';
-  import { DASHBOARD_URL } from '../config';
-  
+  import { onMount } from "svelte";
+  import type { NoteData } from "../types";
+  import { noteStorage } from "../services/noteStorage";
+  import { MAIN_WEB } from "../config";
+
   export let notes: NoteData[] = [];
 
   onMount(async () => {
     try {
-      const data = await getNotes();
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      const data = await noteStorage.getNotes({ website: tab.url });
       notes = data;
     } catch (error) {
-      console.error('Failed to load notes:', error);
+      console.error("Failed to load notes:", error);
     }
-  })
+  });
 
   async function handleAdd() {
     // Get the active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     if (!tab?.id) return;
 
     // Send message to content script to create a note
-    chrome.tabs.sendMessage(tab.id, { 
-      type: 'CREATE_NOTE',
+    chrome.tabs.sendMessage(tab.id, {
+      type: "CREATE_NOTE",
       data: {
-        title: 'New Note',
-        content: '',
-        website: tab.url || '',
-        color: 'yellow',
-        position: { x: 100, y: 100 }
-      }
+        title: "New Note",
+        content: "",
+        website: tab.url || "",
+        color: "yellow",
+        position: { x: 100, y: 100 },
+      },
     });
   }
 
@@ -37,9 +44,9 @@
     // Send message to content script to focus the note
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, { 
-          type: 'FOCUS_NOTE', 
-          noteId: note.id 
+        chrome.tabs.sendMessage(tabs[0].id, {
+          type: "FOCUS_NOTE",
+          noteId: note.id,
         });
       }
     });
@@ -50,16 +57,16 @@
   <nav class="header">
     <h1 class="title">Note Papers</h1>
     <div class="actions">
-      <a 
-        href={DASHBOARD_URL} 
-        target="_blank" 
+      <a
+        href={MAIN_WEB}
+        target="_blank"
         class="action-button"
         aria-label="Open dashboard in new tab"
       >
         <span class="material-symbols-outlined">dashboard</span>
       </a>
-      <button 
-        class="action-button" 
+      <button
+        class="action-button"
         on:click={handleAdd}
         aria-label="Add new note"
       >
@@ -73,27 +80,24 @@
       <div class="empty-state">
         <span class="material-symbols-outlined icon">note_add</span>
         <p>No notes yet</p>
-        <button 
-          on:click={handleAdd}
-          class="create-button"
-        >
+        <button on:click={handleAdd} class="create-button">
           Create your first note
         </button>
       </div>
     {:else}
       <div class="notes-list">
         {#each notes as note}
-          <div 
+          <div
             role="button"
             tabindex="0"
             class="note-item"
             on:click={() => handleSelect(note)}
-            on:keydown={(e) => e.key === 'Enter' && handleSelect(note)}
+            on:keydown={(e) => e.key === "Enter" && handleSelect(note)}
           >
             <div class="note-header">
-              <h3 class="note-title">{note.title || 'Untitled Note'}</h3>
+              <h3 class="note-title">{note.title || "Untitled Note"}</h3>
             </div>
-            <p class="note-content">{note.content || 'No content'}</p>
+            <p class="note-content">{note.content || "No content"}</p>
             <div class="note-tags">
               <span class="tag {note.color}">{note.color}</span>
               <span class="tag website">Website: {note.website}</span>

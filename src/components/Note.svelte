@@ -10,7 +10,7 @@
   const dispatch = createEventDispatcher<{
     update: NoteData;
     delete: { id: string };
-    focus: NoteData['id'];
+    focus: NoteData["id"];
   }>();
 
   let isEdit = false;
@@ -65,9 +65,6 @@
   }
 
   function toggleEdit() {
-    if (isEdit) {
-      dispatch("update", note);
-    }
     isEdit = !isEdit;
   }
 
@@ -79,7 +76,8 @@
     console.log(target);
     console.log(relatedElement);
 
-    toggleEdit();
+    isEdit = false;
+    dispatch("update", note);
   }
 
   function handleColorChange(color: Color) {
@@ -93,7 +91,9 @@
 </script>
 
 <div
-  class="note {note.color} drag-handle {isEdit ? 'drag-disable' : ''} {focused ? 'focused' : ''}"
+  class="note {note.color} drag-handle {isEdit ? 'drag-disable' : ''} {focused
+    ? 'focused'
+    : ''}"
   style="left: {note.position.x}px; top: {note.position.y}px;"
   role="button"
   tabindex="0"
@@ -105,7 +105,11 @@
   aria-label="Draggable note"
 >
   <div class="controls">
-    <button class="button edit" aria-label="{isEdit ? 'finish' : ''} edit note" on:click={toggleEdit}>
+    <button
+      class="button edit"
+      aria-label="{isEdit ? 'finish' : ''} edit note"
+      on:click={toggleEdit}
+    >
       <Icon type={isEdit ? IconType.CHECK : IconType.EDIT} />
     </button>
     <button
@@ -118,31 +122,31 @@
   </div>
 
   {#if isEdit}
-  <div
-    class="content"
-    contenteditable="true"
-    bind:this={contentEl}
-    role="textbox"
-    on:input={handleContentChange}
-    on:blur={handleBlur}
-    aria-multiline="true"
-  ></div>
+    <div
+      class="content"
+      contenteditable="true"
+      bind:this={contentEl}
+      role="textbox"
+      on:input={handleContentChange}
+      on:blur={handleBlur}
+      aria-multiline="true"
+    ></div>
   {:else}
-  <p class="content">{note.content}</p>
+    <p class="content">{note.content}</p>
   {/if}
 
   {#if isEdit}
-  <div class="color-picker" role="toolbar" aria-label="Note color options">
-    {#each colors as color}
-      <button
-        class="color-option {color} {color === note.color ? 'selected' : ''}"
-        on:click={() => handleColorChange(color)}
-        on:keydown={(e) => e.key === "Enter" && handleColorChange(color)}
-        aria-label="Set note color to {color}"
-        aria-pressed={color === note.color}
-      />
-    {/each}
-  </div>
+    <div class="color-picker" role="toolbar" aria-label="Note color options">
+      {#each colors as color}
+        <button
+          class="color-option {color} {color === note.color ? 'selected' : ''}"
+          on:click={() => handleColorChange(color)}
+          on:keydown={(e) => e.key === "Enter" && handleColorChange(color)}
+          aria-label="Set note color to {color}"
+          aria-pressed={color === note.color}
+        />
+      {/each}
+    </div>
   {/if}
 </div>
 
