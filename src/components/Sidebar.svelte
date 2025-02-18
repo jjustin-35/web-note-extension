@@ -3,6 +3,7 @@
   import type { NoteData } from "../types";
   import { noteStorage } from "../services/noteStorage";
   import { MAIN_WEB } from "../config";
+  import { noteDefaultPosition, noteDefaultSize } from "../constants/ui";
 
   export let notes: NoteData[] = [];
 
@@ -35,7 +36,8 @@
         content: "",
         website: tab.url || "",
         color: "yellow",
-        position: { x: 100, y: 100 },
+        position: { ...noteDefaultPosition },
+        size: { ...noteDefaultSize },
       },
     });
   }

@@ -2,12 +2,13 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { Position, Size } from "../types";
+  import { noteDefaultSize } from "../constants/ui";
 
   export let id: string;
   export let position: Position;
   export let size: Size;
-  export let minWidth = 300;
-  export let minHeight = 200;
+  export let minWidth = noteDefaultSize.width;
+  export let minHeight = noteDefaultSize.height;
   export let isFocused = false;
   export let isChangeable = true;
 
