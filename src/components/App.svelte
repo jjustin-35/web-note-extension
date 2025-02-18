@@ -141,7 +141,7 @@
 {#each notes as note (note.id)}
   <Note
     {note}
-    focused={note.id === focusedNoteId}
+    isFocused={note.id === focusedNoteId}
     on:update={async (event) => handleUpdateNote(event.detail)}
     on:delete={async () => handleDeleteNote(note.id)}
     on:focus={handleNoteFocus}
@@ -149,6 +149,10 @@
 {/each}
 
 <style>
+  :global(*) {
+    box-sizing: border-box;
+  }
+
   :global(.web-note-toggle) {
     position: fixed;
     bottom: 24px;

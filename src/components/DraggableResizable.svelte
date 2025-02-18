@@ -6,15 +6,15 @@
   export let id: string;
   export let position: Position;
   export let size: Size;
-  export let minWidth = 200;
-  export let minHeight = 120;
-  export let focused = false;
+  export let minWidth = 300;
+  export let minHeight = 200;
+  export let isFocused = false;
+  export let isChangeable = true;
 
   const dispatch = createEventDispatcher<{
     update: { position: Position; size: Size };
   }>();
 
-  let isEdit = false;
   let isDragging = false;
   let isResizing = false;
   let dragOffset: Position | null = null;
@@ -23,7 +23,7 @@
   let resizeStart: Position | null = null;
 
   function handleDragStart(e: MouseEvent) {
-    if (isEdit || isResizing) return;
+    if (!isChangeable || isResizing) return;
     const target = e.target as HTMLElement;
     if (target.classList.contains("resize-handle")) return;
 
@@ -64,6 +64,7 @@
   }
 
   function handleResizeStart(e: MouseEvent) {
+    if (!isChangeable || isDragging) return;
     e.stopPropagation();
     isResizing = true;
     const currentTarget = e.currentTarget as HTMLElement;
@@ -90,12 +91,9 @@
     const newWidth = Math.max(minWidth, originalSize.width + deltaX);
     const newHeight = Math.max(minHeight, originalSize.height + deltaY);
 
-    const element = document.querySelector(`#${id}`) as HTMLElement;
-    if (element) {
-      element.style.width = `${newWidth}px`;
-      element.style.height = `${newHeight}px`;
+    requestAnimationFrame(() => {
       size = { width: newWidth, height: newHeight };
-    }
+    });
   }
 
   function handleResizeEnd() {
@@ -113,12 +111,15 @@
 
 <div
   {id}
-  class="draggable-resizable {focused ? 'focused' : ''}"
+  class="draggable-resizable {isFocused ? 'isFocused' : ''}"
   role="button"
   tabindex="0"
   aria-label="Drag and resize"
-  style="left: {position.x}px; top: {position.y}px; width: {size.width}px; height: {size.height}px;"
+  style="left: {position.x}px; top: {position.y}px; width: {size?.width ||
+    minWidth}px; height: {size?.height || minHeight}px; will-change: transform, width, height;"
   on:mousedown={handleDragStart}
+  on:focus
+  on:blur
 >
   <slot />
   <div
@@ -134,23 +135,26 @@
   .draggable-resizable {
     position: absolute;
     cursor: move;
-    outline: 2px dashed #666;
-    outline-offset: 4px;
+    border-radius: 8px;
     transition:
       outline-color 0.2s ease,
       width 0.1s ease,
       height 0.1s ease;
+    transform: translate3d(0,0,0);
+    backface-visibility: hidden;
+    perspective: 1000px;
   }
 
-  .draggable-resizable.focused {
+  .draggable-resizable.isFocused {
     outline: 2px dashed #666;
     z-index: 10000;
+    outline-offset: 4px;
   }
 
   .resize-handle {
     position: absolute;
-    bottom: 0;
-    right: 0;
+    bottom: -4px;
+    right: -4px;
     width: 16px;
     height: 16px;
     cursor: se-resize;
@@ -164,7 +168,7 @@
   }
 
   .draggable-resizable:hover .resize-handle,
-  .draggable-resizable.focused .resize-handle {
+  .draggable-resizable.isFocused .resize-handle {
     display: block;
   }
 </style>

@@ -6,7 +6,7 @@
   import DraggableResizable from "./DraggableResizable.svelte";
 
   export let note: NoteData;
-  export let focused: boolean = false;
+  export let isFocused: boolean = false;
   let value: string = note.content;
 
   const dispatch = createEventDispatcher<{
@@ -28,13 +28,17 @@
     dispatch("focus", note.id);
   }
 
+  function handleBlur() {
+    dispatch("focus", null);
+  }
+
   function toggleEdit() {
     setTimeout(() => {
       isEdit = !isEdit;
     }, 100);
   }
 
-  function handleBlur(e: FocusEvent) {
+  function handleNoteBlur(e: FocusEvent) {
     const target = e.currentTarget as HTMLElement;
     const relatedElement = e.relatedTarget as HTMLElement;
     if (!isEdit) return;
@@ -44,6 +48,7 @@
     note.title = value.split("\n")[0].trim() || "Untitled Note";
 
     isEdit = false;
+    handleBlur();
     dispatch("update", note);
   }
 
@@ -61,13 +66,16 @@
   id="note-{note.id}"
   position={note.position}
   size={note.size}
-  {focused}
+  {isFocused}
+  isChangeable={!isEdit}
   on:update={handleUpdate}
   on:mousedown={handleFocus}
+  on:focus={handleFocus}
+  on:blur={handleBlur}
 >
   <div
     class="note {note.color} {isEdit ? 'drag-disable' : ''}"
-    on:blur={handleBlur}
+    on:blur={handleNoteBlur}
     data-note-id={note.id}
     aria-label="Draggable note"
   >
@@ -91,7 +99,7 @@
     {#if isEdit}
       <textarea
         class="content"
-        on:blur={handleBlur}
+        on:blur={handleNoteBlur}
         aria-multiline="true"
         bind:value
       />
@@ -117,9 +125,8 @@
 
 <style>
   .note {
-    position: absolute;
-    width: 200px;
-    min-height: 120px;
+    width: 100%;
+    height: 100%;
     padding: 8px 16px 16px;
     border-radius: 8px;
     background-color: var(--note-bg);
@@ -128,14 +135,9 @@
     transition: box-shadow 0.2s ease;
     display: flex;
     flex-direction: column;
-    cursor: move;
-    overflow: auto;
-    outline: 2px dashed #666;
-    outline-offset: 4px;
-    transition: outline-color 0.2s ease, width 0.1s ease, height 0.1s ease;
   }
 
-  .note.focused {
+  .note.isFocused {
     z-index: 10000;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
     outline: 2px dashed #666;
