@@ -1,11 +1,13 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { Color, NoteData } from "../types";
+  import type { Color, NoteData, Position, Size } from "../types";
   import { IconType } from "../types";
   import Icon from "./Icon.svelte";
+  import DraggableResizable from "./DraggableResizable.svelte";
 
   export let note: NoteData;
   export let focused: boolean = false;
+  let value: string = note.content;
 
   const dispatch = createEventDispatcher<{
     update: NoteData;
@@ -14,54 +16,16 @@
   }>();
 
   let isEdit = false;
-  let value: string = note.content;
-  let dragOffset: { x: number; y: number } | null = null;
-  let originalPosition: { x: number; y: number } | null = null;
-  let isResizing = false;
-  let originalSize: { width: number; height: number } | null = null;
-  let resizeStart: { x: number; y: number } | null = null;
-
   const colors: Color[] = ["yellow", "pink", "blue"];
 
-  function handleDragStart(e: MouseEvent) {
-    if (isEdit) return;
-    if (isResizing) return;
-    const target = e.target as HTMLElement;
+  function handleUpdate({ detail }: CustomEvent<{ position: Position; size: Size }>) {
+    note.position = detail.position;
+    note.size = detail.size;
+    dispatch("update", note);
+  }
 
-    originalPosition = { ...note.position };
-
-    dragOffset = {
-      x: e.clientX - note.position.x,
-      y: e.clientY - note.position.y,
-    };
-
-    target.style.cursor = "grabbing";
+  function handleFocus() {
     dispatch("focus", note.id);
-  }
-
-  function handleDragMove(e: MouseEvent) {
-    if (isEdit) return;
-    if (isResizing) return;
-    if (!dragOffset) return;
-
-    note.position = {
-      x: e.clientX - dragOffset.x,
-      y: e.clientY - dragOffset.y,
-    };
-  }
-
-  function handleDragEnd(e: MouseEvent) {
-    if (isEdit) return;
-    if (isResizing) return;
-    if (!dragOffset) return;
-
-    dragOffset = null;
-    const target = e.target as HTMLElement;
-    target.style.cursor = "move";
-
-    if (JSON.stringify(originalPosition) !== JSON.stringify(note.position)) {
-      dispatch("update", note);
-    }
   }
 
   function toggleEdit() {
@@ -91,121 +55,65 @@
   function handleDelete() {
     dispatch("delete", { id: note.id });
   }
-
-  function handleResizeStart(e: MouseEvent) {
-    e.stopPropagation();
-    console.log('handleResizeStart')
-    isResizing = true;
-    const currentTarget = e.currentTarget as HTMLElement;
-    const noteElement = currentTarget.parentElement;
-    originalSize = {
-      width: noteElement.offsetWidth,
-      height: noteElement.offsetHeight,
-    };
-    resizeStart = {
-      x: e.clientX,
-      y: e.clientY,
-    };
-
-    window.addEventListener('mousemove', handleResizeMove);
-    window.addEventListener('mouseup', handleResizeEnd);
-  }
-
-  function handleResizeMove(e: MouseEvent) {
-    if (!isResizing || !originalSize || !resizeStart) return;
-    console.log('handleResizeMove')
-
-    const deltaX = e.clientX - resizeStart.x;
-    const deltaY = e.clientY - resizeStart.y;
-
-    const newWidth = Math.max(200, originalSize.width + deltaX);
-    const newHeight = Math.max(120, originalSize.height + deltaY);
-
-    const noteElement = document.querySelector(`#note-${note.id}`) as HTMLElement;
-    if (noteElement) {
-      console.log('noteElement', noteElement)
-      noteElement.style.width = `${newWidth}px`;
-      noteElement.style.height = `${newHeight}px`;
-      note.size = { width: newWidth, height: newHeight };
-    }
-  }
-
-  function handleResizeEnd() {
-    if (!isResizing) return;
-    console.log('handleResizeEnd');
-    
-    dispatch("update", note);
-    isResizing = false;
-    originalSize = null;
-    resizeStart = null;
-
-    window.removeEventListener('mousemove', handleResizeMove);
-    window.removeEventListener('mouseup', handleResizeEnd);
-  }
 </script>
 
-<div
-  class="note {note.color} drag-handle {isEdit ? 'drag-disable' : ''}"
-  style="left: {note.position.x}px; top: {note.position.y}px;"
-  role="button"
-  tabindex="0"
-  on:mousedown={handleDragStart}
-  on:mousemove={handleDragMove}
-  on:mouseup={handleDragEnd}
-  on:blur={handleBlur}
+<DraggableResizable
   id="note-{note.id}"
-  data-note-id={note.id}
-  aria-label="Draggable note"
+  position={note.position}
+  size={note.size}
+  {focused}
+  on:update={handleUpdate}
+  on:mousedown={handleFocus}
 >
-  <div class="controls">
-    <button
-      class="button edit"
-      aria-label="{isEdit ? 'finish' : ''} edit note"
-      on:click={toggleEdit}
-    >
-      <Icon type={isEdit ? IconType.CHECK : IconType.EDIT} />
-    </button>
-    <button
-      class="button delete"
-      on:click={handleDelete}
-      aria-label="Delete note"
-    >
-      <Icon type={IconType.DELETE} />
-    </button>
-  </div>
-
-  {#if isEdit}
-    <textarea
-      class="content"
-      on:blur={handleBlur}
-      aria-multiline="true"
-      bind:value
-    />
-  {:else}
-    <p class="content">{value}</p>
-  {/if}
-
-  {#if isEdit}
-    <div class="color-picker" role="toolbar" aria-label="Note color options">
-      {#each colors as color}
-        <button
-          class="color-option {color} {color === note.color ? 'selected' : ''}"
-          on:click={() => handleColorChange(color)}
-          on:keydown={(e) => e.key === "Enter" && handleColorChange(color)}
-          aria-label="Set note color to {color}"
-          aria-pressed={color === note.color}
-        />
-      {/each}
-    </div>
-  {/if}
   <div
-    class="resize-handle"
-    role="button"
-    tabindex="0"
-    aria-label="Resize note"
-    on:mousedown={handleResizeStart}
-  />
-</div>
+    class="note {note.color} {isEdit ? 'drag-disable' : ''}"
+    on:blur={handleBlur}
+    data-note-id={note.id}
+    aria-label="Draggable note"
+  >
+    <div class="controls">
+      <button
+        class="button edit"
+        aria-label="{isEdit ? 'finish' : ''} edit note"
+        on:click={toggleEdit}
+      >
+        <Icon type={isEdit ? IconType.CHECK : IconType.EDIT} />
+      </button>
+      <button
+        class="button delete"
+        on:click={handleDelete}
+        aria-label="Delete note"
+      >
+        <Icon type={IconType.DELETE} />
+      </button>
+    </div>
+
+    {#if isEdit}
+      <textarea
+        class="content"
+        on:blur={handleBlur}
+        aria-multiline="true"
+        bind:value
+      />
+    {:else}
+      <p class="content">{value}</p>
+    {/if}
+
+    {#if isEdit}
+      <div class="color-picker" role="toolbar" aria-label="Note color options">
+        {#each colors as color}
+          <button
+            class="color-option {color} {color === note.color ? 'selected' : ''}"
+            on:click={() => handleColorChange(color)}
+            on:keydown={(e) => e.key === "Enter" && handleColorChange(color)}
+            aria-label="Set note color to {color}"
+            aria-pressed={color === note.color}
+          />
+        {/each}
+      </div>
+    {/if}
+  </div>
+</DraggableResizable>
 
 <style>
   .note {
@@ -232,15 +140,6 @@
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
     outline: 2px dashed #666;
     resize: both;
-  }
-
-  .drag-handle {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 24px;
-    cursor: move;
   }
 
   .drag-disable {
