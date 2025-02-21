@@ -7,7 +7,7 @@ export interface UserInfo {
 }
 
 export class AuthService {
-  private static readonly SESSION_URL = `${MAIN_WEB}/api/auth/session`;
+  private static readonly SESSION_URL = `${MAIN_WEB}/auth/session`;
 
   private openLoginWindow(url: string): Promise<chrome.windows.Window> {
     return new Promise((resolve) => {
@@ -20,15 +20,22 @@ export class AuthService {
     });
   }
 
+  private closeLoginWindow(window: chrome.windows.Window): Promise<void> {
+    return new Promise((resolve) => {
+      chrome.windows.remove(window.id, () => resolve());
+    });
+  }
+
   private waitForLogin(loginWindow: chrome.windows.Window): Promise<void> {
     return new Promise((resolve, reject) => {
+      // use promise to wait for login
       const checkInterval = setInterval(async () => {
         try {
           const session = await this.getSession();
           if (session?.user) {
             clearInterval(checkInterval);
             if (loginWindow.id) {
-              chrome.windows.remove(loginWindow.id);
+              await this.closeLoginWindow(loginWindow);
             }
             resolve();
           }
@@ -37,14 +44,14 @@ export class AuthService {
         }
       }, 1000);
 
-      // 設定超時
-      setTimeout(() => {
+      // timeout after 5 minutes
+      setTimeout(async () => {
         clearInterval(checkInterval);
         if (loginWindow.id) {
-          chrome.windows.remove(loginWindow.id);
+          await this.closeLoginWindow(loginWindow);
         }
         reject(new Error('Login timeout'));
-      }, 300000); // 5 分鐘超時
+      }, 300000);
     });
   }
 

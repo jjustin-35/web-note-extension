@@ -2,12 +2,19 @@
   import { onMount } from "svelte";
   import type { NoteData } from "../types";
   import { noteStorage } from "../services/noteStorage";
-  import { MAIN_WEB } from "../config";
+  // import { MAIN_WEB } from "../config";
   import { noteDefaultPosition, noteDefaultSize } from "../constants/ui";
+  import Login from "./Login.svelte";
+  import type { UserInfo } from "../services/auth";
 
   export let notes: NoteData[] = [];
+  let userInfo: UserInfo = null;
 
   onMount(async () => {
+    loadNotes();
+  });
+
+  async function loadNotes() {
     try {
       const [tab] = await chrome.tabs.query({
         active: true,
@@ -18,9 +25,13 @@
     } catch (error) {
       console.error("Failed to load notes:", error);
     }
-  });
+  }
 
   async function handleAdd() {
+    if (!userInfo) {
+      return;
+    }
+
     // Get the active tab
     const [tab] = await chrome.tabs.query({
       active: true,
@@ -53,62 +64,64 @@
       }
     });
   }
+
+  function handleLogin(event: CustomEvent<UserInfo>) {
+    userInfo = event.detail;
+    loadNotes();
+  }
+
+  function handleLogout() {
+    userInfo = null;
+    notes = [];
+  }
 </script>
 
 <div class="container">
-  <nav class="header">
-    <h1 class="title">Note Papers</h1>
-    <div class="actions">
-      <a
-        href={MAIN_WEB}
-        target="_blank"
-        class="action-button"
-        aria-label="Open dashboard in new tab"
-      >
-        <span class="material-symbols-outlined">dashboard</span>
-      </a>
-      <button
-        class="action-button"
-        on:click={handleAdd}
-        aria-label="Add new note"
-      >
-        <span class="material-symbols-outlined">add</span>
-      </button>
-    </div>
-  </nav>
+  <div class="header">
+    <h1>Web Note</h1>
+    <Login on:login={handleLogin} on:logout={handleLogout} />
+  </div>
 
-  <div class="content">
-    {#if notes.length === 0}
-      <div class="empty-state">
-        <span class="material-symbols-outlined icon">note_add</span>
-        <p>No notes yet</p>
-        <button on:click={handleAdd} class="create-button">
-          Create your first note
+  {#if userInfo}
+    <div class="content">
+      <div class="actions">
+        <button class="add-button" on:click={handleAdd}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add Note
         </button>
       </div>
-    {:else}
+
       <div class="notes-list">
-        {#each notes as note}
-          <div
-            role="button"
-            tabindex="0"
-            class="note-item"
-            on:click={() => handleSelect(note)}
-            on:keydown={(e) => e.key === "Enter" && handleSelect(note)}
-          >
-            <div class="note-header">
-              <h3 class="note-title">{note.title || "Untitled Note"}</h3>
-            </div>
-            <p class="note-content">{note.content || "No content"}</p>
-            <div class="note-tags">
-              <span class="tag {note.color}">{note.color}</span>
-              <span class="tag website">Website: {note.website}</span>
-            </div>
+        {#if notes.length === 0}
+          <div class="empty-state">
+            <p>No notes yet. Click "Add Note" to create one!</p>
           </div>
-        {/each}
+        {:else}
+          {#each notes as note}
+            <div
+              class="note-item"
+              on:click={() => handleSelect(note)}
+              on:keydown={(e) => e.key === 'Enter' && handleSelect(note)}
+              role="button"
+              tabindex="0"
+            >
+              <div class="note-content">
+                <h3>{note.title || 'Untitled'}</h3>
+                <p>{note.content || 'No content'}</p>
+              </div>
+            </div>
+          {/each}
+        {/if}
       </div>
-    {/if}
-  </div>
+    </div>
+  {:else}
+    <div class="login-prompt">
+      <p>Please login to view and create notes.</p>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -116,145 +129,101 @@
     width: 100%;
     min-height: 100vh;
     background-color: #f8fafc;
+    display: flex;
+    flex-direction: column;
   }
 
   .header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: white;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     padding: 1rem;
+    background-color: white;
+    border-bottom: 1px solid #e2e8f0;
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
 
-  .title {
+  h1 {
     font-size: 1.5rem;
-    font-weight: bold;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+  }
+
+  .content {
+    flex: 1;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .actions {
     display: flex;
+    justify-content: flex-end;
+  }
+
+  .add-button {
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
-  }
-
-  .action-button {
-    padding: 0.5rem;
-    color: #6b7280;
-    background: none;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .action-button:hover {
-    color: #374151;
-  }
-
-  .content {
-    padding: 1rem;
-  }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    margin-top: 2rem;
-    color: #6b7280;
-  }
-
-  .icon {
-    font-size: 2.5rem;
-  }
-
-  .create-button {
+    padding: 0.5rem 1rem;
     background-color: #3b82f6;
     color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
     border: none;
+    border-radius: 0.375rem;
+    font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s;
   }
 
-  .create-button:hover {
+  .add-button:hover {
     background-color: #2563eb;
   }
 
   .notes-list {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .note-item {
     background-color: white;
+    border: 1px solid #e2e8f0;
     border-radius: 0.5rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     padding: 1rem;
     cursor: pointer;
-    transition: box-shadow 0.2s;
+    transition: all 0.2s;
   }
 
   .note-item:hover {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
-  .note-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 0.75rem;
-  }
-
-  .note-title {
+  .note-content h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
     font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: #1e293b;
   }
 
-  .note-content {
-    color: #4b5563;
+  .note-content p {
+    margin: 0;
     font-size: 0.875rem;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    color: #64748b;
+    line-height: 1.25rem;
   }
 
-  .note-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 1rem;
+  .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #64748b;
   }
 
-  .tag {
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-  }
-
-  .tag.yellow {
-    background-color: #fef3c7;
-  }
-
-  .tag.pink {
-    background-color: #fce7f3;
-  }
-
-  .tag.blue {
-    background-color: #dbeafe;
-  }
-
-  .tag.website {
-    background-color: #dbeafe;
+  .login-prompt {
+    text-align: center;
+    padding: 2rem;
+    color: #64748b;
   }
 </style>

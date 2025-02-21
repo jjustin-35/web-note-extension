@@ -1,7 +1,12 @@
 <script lang="ts">
   import { authService } from '../services/auth';
   import type { UserInfo } from '../services/auth';
-  import { onMount } from 'svelte';
+  import { onMount, createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher<{
+    login: UserInfo;
+    logout: void;
+  }>();
 
   let isLoading = false;
   let error = '';
@@ -51,28 +56,23 @@
       isLoading = false;
     }
   }
-
-  import { createEventDispatcher } from 'svelte';
-  const dispatch = createEventDispatcher();
 </script>
 
 <div class="login-container">
-  {#if isLoading}
-    <div class="loading">Loading...</div>
-  {:else if userInfo}
+  {#if userInfo}
     <div class="user-info">
       <img src={userInfo.picture} alt={userInfo.name} class="avatar" />
-      <div class="user-details">
-        <p class="name">{userInfo.name}</p>
-        <p class="email">{userInfo.email}</p>
-      </div>
-      <button on:click={handleLogout} class="logout-btn">
+      <button class="logout-button" on:click={handleLogout} disabled={isLoading}>
         Logout
       </button>
     </div>
   {:else}
-    <button on:click={handleLogin} class="login-btn">
-      Sign in with Google
+    <button class="login-button" on:click={handleLogin} disabled={isLoading}>
+      {#if isLoading}
+        Loading...
+      {:else}
+        Login with Google
+      {/if}
     </button>
   {/if}
   
@@ -83,76 +83,60 @@
 
 <style>
   .login-container {
-    padding: 1rem;
-    text-align: center;
-  }
-
-  .loading {
-    color: #666;
-    margin: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .user-info {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    border-radius: 8px;
-    background: #f5f5f5;
+    gap: 0.75rem;
   }
 
   .avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    object-fit: cover;
   }
 
-  .user-details {
-    flex: 1;
-    text-align: left;
-  }
-
-  .name {
-    font-weight: bold;
-    margin: 0;
-  }
-
-  .email {
-    font-size: 0.9em;
-    color: #666;
-    margin: 0;
-  }
-
-  .login-btn, .logout-btn {
+  .login-button, .logout-button {
     padding: 0.5rem 1rem;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
     font-weight: 500;
-    transition: background-color 0.2s;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
   }
 
-  .login-btn {
+  .login-button {
     background-color: #4285f4;
     color: white;
   }
 
-  .login-btn:hover {
+  .login-button:hover {
     background-color: #3367d6;
   }
 
-  .logout-btn {
-    background-color: #f1f1f1;
-    color: #333;
+  .logout-button {
+    background-color: #f3f4f6;
+    color: #374151;
   }
 
-  .logout-btn:hover {
-    background-color: #e2e2e2;
+  .logout-button:hover {
+    background-color: #e5e7eb;
+  }
+
+  button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 
   .error {
-    color: #d32f2f;
+    color: #dc2626;
+    font-size: 0.875rem;
     margin-top: 0.5rem;
-    font-size: 0.9em;
   }
 </style>
