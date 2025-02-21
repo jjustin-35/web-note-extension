@@ -10,3 +10,4 @@ let MAIN_WEB = "https://web-note-nine.vercel.app";
 
 export { MAIN_WEB };
 export const API_URL = `${MAIN_WEB}/api`;
+export const AUTH_URL = `${MAIN_WEB}/auth`;

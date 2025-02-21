@@ -1,7 +1,7 @@
 <!-- DraggableResizable.svelte -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { Position, Size } from "../types";
+  import type { Position, Size } from "../types/common";
   import { noteDefaultSize } from "../constants/ui";
 
   export let id: string;

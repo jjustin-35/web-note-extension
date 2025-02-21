@@ -1,11 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { NoteData } from "../types";
-  import { noteStorage } from "../services/noteStorage";
-  // import { MAIN_WEB } from "../config";
+  import type { NoteData } from "../types/common";
+  import { getNotes } from "../apis/storage";
   import { noteDefaultPosition, noteDefaultSize } from "../constants/ui";
   import Login from "./Login.svelte";
-  import type { UserInfo } from "../services/auth";
+  import type { UserInfo } from "../apis/auth";
 
   export let notes: NoteData[] = [];
   let userInfo: UserInfo = null;
@@ -20,7 +19,7 @@
         active: true,
         currentWindow: true,
       });
-      const data = await noteStorage.getNotes({ website: tab.url });
+      const data = await getNotes({ website: tab.url });
       notes = data;
     } catch (error) {
       console.error("Failed to load notes:", error);

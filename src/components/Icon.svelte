@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { IconType } from "../types";
+  import { IconType } from "../types/common";
   export let type: IconType;
   export let size: number = 16;
   export let stroke: string = "currentColor";

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { Color, NoteData, Position, Size } from "../types";
-  import { IconType } from "../types";
+  import type { Color, NoteData, Position, Size } from "../types/common";
+  import { IconType } from "../types/common";
   import Icon from "./Icon.svelte";
   import DraggableResizable from "./DraggableResizable.svelte";
 

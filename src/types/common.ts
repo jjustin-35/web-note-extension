@@ -28,11 +28,6 @@ export interface NoteData {
   updatedAt?: string;
 }
 
-export enum MessageType {
-  CREATE_NOTE = 'CREATE_NOTE',
-  FOCUS_NOTE = 'FOCUS_NOTE'
-}
-
 export enum IconType {
   EDIT = 'edit',
   DELETE = 'delete',

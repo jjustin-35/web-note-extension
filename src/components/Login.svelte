@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { authService } from '../services/auth';
-  import type { UserInfo } from '../services/auth';
+  import { login, logout, isAuthenticated } from '../apis/auth';
+  import type { UserInfo } from '../apis/auth';
   import { onMount, createEventDispatcher } from 'svelte';
 
   const dispatch = createEventDispatcher<{
@@ -18,8 +18,8 @@
 
   async function checkAuthStatus() {
     try {
-      const isAuthenticated = await authService.isAuthenticated();
-      if (isAuthenticated) {
+      const auth = await isAuthenticated();
+      if (auth) {
         await handleLogin();
       }
     } catch (err) {
@@ -32,7 +32,7 @@
     error = '';
     
     try {
-      userInfo = await authService.login();
+      userInfo = await login();
       // Dispatch event to notify parent components
       dispatch('login', userInfo);
     } catch (err) {
@@ -46,7 +46,7 @@
   async function handleLogout() {
     isLoading = true;
     try {
-      await authService.logout();
+      await logout();
       userInfo = null;
       dispatch('logout');
     } catch (err) {

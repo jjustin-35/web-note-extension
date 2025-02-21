@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Note from "./Note.svelte";
-  import { MessageType, type NoteData } from "../types";
-  import { noteStorage } from "../services/noteStorage";
+  import type { NoteData } from "../types/common";
+  import { MessageType } from "../types/message";
+  import { getNotes, saveNote, updateNote, deleteNote } from "../apis/storage";
+  import { noteDefaultPosition, noteDefaultSize } from "../constants/ui";
 
   let notes: NoteData[] = [];
   let focusedNoteId: string | null = null;
@@ -16,7 +18,7 @@
   async function loadNotes() {
     try {
       const website = normalizeUrl(currentWebsite);
-      notes = await noteStorage.getNotes({ website });
+      notes = await getNotes({ website });
     } catch (error) {
       console.error("Failed to load notes:", error);
     }
@@ -90,13 +92,13 @@
       content: "",
       website: normalizeUrl(currentWebsite),
       color: "yellow",
-      position: { x: 100, y: 100 },
-      size: { width: 200, height: 120 },
+      position: noteDefaultPosition,
+      size: noteDefaultSize,
       tags: [],
     };
 
     try {
-      const newNote = await noteStorage.saveNote(note);
+      const newNote = await saveNote(note);
       notes = [...notes, newNote];
       focusedNoteId = newNote.id;
     } catch (error) {
@@ -106,7 +108,7 @@
 
   async function handleUpdateNote(note: NoteData) {
     try {
-      const updatedNote = await noteStorage.saveNote(note);
+      const updatedNote = await updateNote(note);
       notes = notes.map((n) => (n.id === updatedNote.id ? updatedNote : n));
     } catch (error) {
       console.error("Failed to update note:", error);
@@ -115,7 +117,7 @@
 
   async function handleDeleteNote(id: string) {
     try {
-      await noteStorage.deleteNote(id);
+      await deleteNote(id);
       notes = notes.filter((n) => n.id !== id);
 
       if (focusedNoteId === id) {

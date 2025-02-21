@@ -1,48 +1,67 @@
-import { API_URL } from "../config";
-import type { NoteData } from "../types";
+import type { NoteData } from "../types/common";
+import { MessageType } from "../types/message";
+
+function sendMessage(data: any): Promise<any> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: MessageType.API_REQUEST, data }, (response) => {
+      resolve(response);
+    });
+  });
+}
 
 export async function getNotes(data?: {
   search?: string;
   website?: string;
 }): Promise<NoteData[]> {
-  const { search, website } = data || {};
-  const searchParams = new URLSearchParams({
-    search: search || '',
-    website: website || '',
+  const response = await sendMessage({
+    endpoint: "/notes",
+    method: "GET",
+    params: data,
   });
-  const response = await fetch(`${API_URL}/notes?${searchParams.toString()}`, {
-    credentials: 'include'  // 添加這行來傳送 cookies
-  });
-  if (!response.ok) throw new Error("Failed to load notes");
-  return response.json();
+
+  if (!response.success) {
+    throw new Error(response.error || "Failed to load notes");
+  }
+
+  return response.data;
 }
 
 export async function postNote(note: Partial<NoteData>): Promise<NoteData> {
-  const response = await fetch(`${API_URL}/notes`, {
+  const response = await sendMessage({
+    endpoint: "/notes",
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: 'include',  // 添加這行來傳送 cookies
-    body: JSON.stringify(note),
+    body: note,
   });
-  if (!response.ok) throw new Error("Failed to create note");
-  return response.json();
+
+  if (!response.success) {
+    throw new Error(response.error || "Failed to create note");
+  }
+
+  return response.data;
 }
 
 export async function putNote(note: Partial<NoteData>): Promise<NoteData> {
-  const response = await fetch(`${API_URL}/notes`, {
+  const response = await sendMessage({
+    endpoint: "/notes",
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: 'include',  // 添加這行來傳送 cookies
-    body: JSON.stringify(note),
+    body: note,
   });
-  if (!response.ok) throw new Error("Failed to update note");
-  return response.json();
+
+  if (!response.success) {
+    throw new Error(response.error || "Failed to update note");
+  }
+
+  return response.data;
 }
 
 export async function deleteNote(noteId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/notes?noteId=${noteId}`, {
+  const response = await sendMessage({
+    endpoint: "/notes",
     method: "DELETE",
-    credentials: 'include',  // 添加這行來傳送 cookies
+    params: { noteId },
   });
-  if (!response.ok) throw new Error("Failed to delete note");
+
+  if (!response.success) {
+    throw new Error(response.error || "Failed to delete note");
+  }
 }
