@@ -1,4 +1,3 @@
-<!-- DraggableResizable.svelte -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { Position, Size } from "../types/common";

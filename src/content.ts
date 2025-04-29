@@ -5,6 +5,7 @@
   // Create a container with shadow DOM for style isolation
   const container = document.createElement('div');
   container.id = 'web-note-container';
+  container.style.position = 'absolute';
   container.style.top = '0';
   container.style.right = '0';
   container.style.zIndex = '9999';
