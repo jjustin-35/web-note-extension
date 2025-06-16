@@ -13,7 +13,8 @@
   ],
   "host_permissions": [
     "http://localhost:5173/*",
-    "https://web-note-nine.vercel.app/*"
+    "https://web-note-nine.vercel.app/*",
+    "*"
   ],
   "content_scripts": [
     {

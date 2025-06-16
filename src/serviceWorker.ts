@@ -10,7 +10,7 @@ chrome.sidePanel
 chrome.tabs.onUpdated.addListener(async (tabId, _, tab) => {
   if (!tab?.url) return;
   const url = new URL(tab.url);
-  if (url.origin === MAIN_WEB) {
+  if (url.origin.includes(MAIN_WEB)) {
     await chrome.sidePanel.setOptions({
       tabId,
       enabled: false,

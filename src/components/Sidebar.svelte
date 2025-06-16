@@ -38,7 +38,7 @@
     });
     if (!tab?.id) return;
 
-    // Send message to content script to create a note
+    // Send message to service worker to create a note
     chrome.tabs.sendMessage(tab.id, {
       type: "CREATE_NOTE",
       data: {
@@ -53,7 +53,7 @@
   }
 
   function handleSelect(note: NoteData) {
-    // Send message to content script to focus the note
+    // Send message to service worker to focus the note
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
         chrome.tabs.sendMessage(tabs[0].id, {
