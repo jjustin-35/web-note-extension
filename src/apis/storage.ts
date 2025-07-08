@@ -38,12 +38,15 @@ function getNotesFromLocal(props?: GetNoteProps): Promise<NoteData[]> {
 
 export async function getNotes(props?: GetNoteProps): Promise<NoteData[]> {
   const auth = await isAuthenticated();
+  let notes: NoteData[] = [];
 
   if (auth) {
-    return getNotesApi(props);
+    notes = await getNotesApi(props);
   } else {
-    return getNotesFromLocal(props);
+    notes = await getNotesFromLocal(props);
   }
+
+  return notes;
 }
 
 export function saveNoteToLocal(note: NoteData): Promise<NoteData> {

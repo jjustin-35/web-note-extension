@@ -5,6 +5,7 @@
   import { noteDefaultPosition, noteDefaultSize } from "../constants/ui";
   import Login from "./Login.svelte";
   import type { UserInfo } from "../apis/auth";
+  import { MessageType } from "../types/message";
 
   export let notes: NoteData[] = [];
   let userInfo: UserInfo = null;
@@ -28,6 +29,7 @@
 
   async function handleAdd() {
     if (!userInfo) {
+      console.warn("User is not authenticated");
       return;
     }
 
@@ -40,7 +42,7 @@
 
     // Send message to service worker to create a note
     chrome.tabs.sendMessage(tab.id, {
-      type: "CREATE_NOTE",
+      type: MessageType.CREATE_NOTE,
       data: {
         title: "New Note",
         content: "",
@@ -57,7 +59,7 @@
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
         chrome.tabs.sendMessage(tabs[0].id, {
-          type: "FOCUS_NOTE",
+          type: MessageType.FOCUS_NOTE,
           noteId: note.id,
         });
       }

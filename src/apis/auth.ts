@@ -38,7 +38,8 @@ export async function isAuthenticated(): Promise<boolean> {
   try {
     const response = await sendMessage(MessageType.CHECK_AUTH);
     return response.success && !!response.data?.user;
-  } catch {
+  } catch (error) {
+    console.error("Check auth failed:", error.message);
     return false;
   }
 }
